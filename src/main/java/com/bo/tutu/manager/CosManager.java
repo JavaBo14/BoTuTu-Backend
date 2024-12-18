@@ -39,7 +39,7 @@ public class CosManager {
     /**
      * 上传对象
      *
-     * @param key 唯一键
+     * @param key 唯一键（代表文件在对象存储服务中的路径）
      * @param file 文件
      * @return
      */

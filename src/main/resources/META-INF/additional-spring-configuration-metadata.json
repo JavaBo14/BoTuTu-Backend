@@ -19,16 +19,6 @@
       "name": "cos.client.bucket",
       "type": "java.lang.String",
       "description": "Description for cos.client.bucket."
-    },
-    {
-      "name": "wx.open.appId",
-      "type": "java.lang.String",
-      "description": "Description for wx.open.appId."
-    },
-    {
-      "name": "wx.open.appSecret",
-      "type": "java.lang.String",
-      "description": "Description for wx.open.appSecret."
     }
   ]
 }

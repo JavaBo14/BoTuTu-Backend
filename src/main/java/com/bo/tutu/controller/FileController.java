@@ -54,15 +54,18 @@ public class FileController {
                                            UploadFileRequest uploadFileRequest, HttpServletRequest request) {
         String biz = uploadFileRequest.getBiz();
         FileUploadBizEnum fileUploadBizEnum = FileUploadBizEnum.getEnumByValue(biz);
-        if (fileUploadBizEnum == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        if (biz == null || fileUploadBizEnum == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "业务类型参数错误");
         }
+        //校验文件
         validFile(multipartFile, fileUploadBizEnum);
-        User loginUser = userService.getLoginUser(request);
         // 文件目录：根据业务、用户来划分
+        User loginUser = userService.getLoginUser(request);
         String uuid = RandomStringUtils.randomAlphanumeric(8);
         String filename = uuid + "-" + multipartFile.getOriginalFilename();
-        String filepath = String.format("/%s/%s/%s", fileUploadBizEnum.getValue(), loginUser.getId(), filename);
+//        String filepath = String.format("/%s/%s/%s", fileUploadBizEnum.getValue(), loginUser.getId(), filename);
+        String filepath = String.format(fileUploadBizEnum.getValue(), loginUser.getId(), filename);
+
         File file = null;
         try {
             // 上传文件
