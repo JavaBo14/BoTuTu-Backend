@@ -1,4 +1,4 @@
-package com.bo.tutu.model.dto.file;
+package com.bo.tutu.model.dto.picture;
 
 import java.io.Serializable;
 import lombok.Data;
@@ -10,7 +10,7 @@ import lombok.Data;
  * @from <a href="https://github.com/JavaBo14/BoTuTu-Backend">
  */
 @Data
-public class UploadFileRequest implements Serializable {
+public class UploadPictureRequest implements Serializable {
 
     /**
      * 业务
