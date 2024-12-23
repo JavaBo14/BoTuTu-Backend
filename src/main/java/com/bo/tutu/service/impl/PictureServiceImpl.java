@@ -7,6 +7,7 @@ import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bo.tutu.common.ErrorCode;
@@ -23,7 +24,6 @@ import com.bo.tutu.model.vo.UploadPictureResult;
 import com.bo.tutu.model.vo.UserVO;
 import com.bo.tutu.service.PictureService;
 import com.bo.tutu.service.UserService;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
@@ -51,7 +51,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
         //判断是否为更新图片
         Long pictureId = null;
-        // TODO: 2024/12/21  
+        // TODO: 2024/12/21  在 Spring 的控制器方法中，如果方法参数是一个类（如 PictureUploadRequest），即使前端没有传递参数，Spring 会默认实例化这个类并注入。
+        // TODO: 2024/12/23 这种行为使得 pictureUploadRequest 不会为 null，而是一个默认的空对象（所有字段为 null）防御性编程和代码的健壮性，避免潜在的 NullPointerException
         if (pictureUploadRequest != null){
             pictureId=pictureUploadRequest.getId();
         }
@@ -124,9 +125,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         String sortField = pictureQueryRequest.getSortField();
         String sortOrder = pictureQueryRequest.getSortOrder();
 
-        if (StringUtils.isNotBlank(searchText)){
-            queryWrapper.and(qw ->qw.like(StringUtils.isNotBlank(name),"name",name)
-                        .or().like(StringUtils.isNotBlank(introduction), "introduction", introduction)
+        if (StrUtil.isNotBlank(searchText)){
+            queryWrapper.and(qw ->qw.like(StrUtil.isNotBlank(name),"name",name)
+                        .or().like(StrUtil.isNotBlank(introduction), "introduction", introduction)
             );
         }
         // TODO: 2024/12/21
@@ -136,9 +137,10 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             }
         }
         queryWrapper.eq(ObjectUtil.isNotEmpty(id), "id", id);
-        queryWrapper.like(StringUtils.isNotBlank(name), "name", name);
-        queryWrapper.like(StringUtils.isNotBlank(introduction), "introduction", introduction);
-        queryWrapper.eq(StringUtils.isNotBlank(category), "category", category);
+        queryWrapper.like(StrUtil.isNotBlank(name), "name", name);
+        queryWrapper.like(StrUtil.isNotBlank(introduction), "introduction", introduction);
+        queryWrapper.eq(ObjectUtil.isNotEmpty(userId), "userId", userId);
+        queryWrapper.eq(StrUtil.isNotBlank(category), "category", category);
         queryWrapper.eq(ObjectUtil.isNotEmpty(picSize), "picSize", picSize);
         queryWrapper.eq(ObjectUtil.isNotEmpty(picWidth), "picWidth", picWidth);
         queryWrapper.eq(ObjectUtil.isNotEmpty(picHeight), "picHeight", picHeight);
@@ -146,7 +148,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         queryWrapper.eq(ObjectUtil.isNotEmpty(picFormat), "picFormat", picFormat);
         queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals(CommonConstant.SORT_ORDER_ASC),
                 sortField);
-        return null;
+        return queryWrapper;
     }
 
     @Override
@@ -165,7 +167,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
      * 分页获取图片封装
      */
 
-    // TODO: 2024/12/21  
+    // TODO: 2024/12/21  !!!
     @Override
     public Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request) {
         List<Picture> pictureList = picturePage.getRecords();

@@ -158,15 +158,12 @@ public class PictureController {
 
     /**
      * 分页获取图片列表（仅管理员）
-     *
      * @param pictureQueryRequest
-     * @param request
      * @return
      */
     @PostMapping("/list/page")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Page<Picture>> listPictureByPage(@RequestBody PictureQueryRequest pictureQueryRequest,
-                                                   HttpServletRequest request) {
+    public BaseResponse<Page<Picture>> listPictureByPage(@RequestBody PictureQueryRequest pictureQueryRequest) {
         long current = pictureQueryRequest.getCurrent();
         long size = pictureQueryRequest.getPageSize();
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
@@ -194,6 +191,7 @@ public class PictureController {
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
                 pictureService.getQueryWrapper(pictureQueryRequest));
+
         Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
         return ResultUtils.success(pictureVOPage);
     }
@@ -230,6 +228,10 @@ public class PictureController {
         return ResultUtils.success(true);
     }
 
+    /**
+     * 自定义标签类别
+     * @return
+     */
     @GetMapping("/tag_category")
     public BaseResponse<PictureTagCategory> listPictureTagCategory() {
         PictureTagCategory pictureTagCategory = new PictureTagCategory();

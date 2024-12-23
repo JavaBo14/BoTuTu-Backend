@@ -1,6 +1,7 @@
 package com.bo.tutu.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bo.tutu.common.ErrorCode;
@@ -21,7 +22,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -44,7 +45,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
         // 1. 校验
-        if (StringUtils.isAnyBlank(userAccount, userPassword, checkPassword)) {
+        if (StrUtil.hasBlank(userAccount, userPassword, checkPassword)){
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         if (userAccount.length() < 4) {
@@ -82,7 +83,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1. 校验
-        if (StringUtils.isAnyBlank(userAccount, userPassword)) {
+        if (StrUtil.hasBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         if (userAccount.length() < 4) {
@@ -227,11 +228,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String sortOrder = userQueryRequest.getSortOrder();
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq(id != null, "id", id);
-        queryWrapper.eq(StringUtils.isNotBlank(unionId), "unionId", unionId);
-        queryWrapper.eq(StringUtils.isNotBlank(mpOpenId), "mpOpenId", mpOpenId);
-        queryWrapper.eq(StringUtils.isNotBlank(userRole), "userRole", userRole);
-        queryWrapper.like(StringUtils.isNotBlank(userProfile), "userProfile", userProfile);
-        queryWrapper.like(StringUtils.isNotBlank(userName), "userName", userName);
+        queryWrapper.eq(StrUtil.isNotBlank(unionId), "unionId", unionId);
+        queryWrapper.eq(StrUtil.isNotBlank(mpOpenId), "mpOpenId", mpOpenId);
+        queryWrapper.eq(StrUtil.isNotBlank(userRole), "userRole", userRole);
+        queryWrapper.like(StrUtil.isNotBlank(userProfile), "userProfile", userProfile);
+        queryWrapper.like(StrUtil.isNotBlank(userName), "userName", userName);
         queryWrapper.orderBy(SqlUtils.validSortField(sortField), sortOrder.equals(CommonConstant.SORT_ORDER_ASC),
                 sortField);
         return queryWrapper;

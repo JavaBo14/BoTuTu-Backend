@@ -3,6 +3,7 @@ package com.bo.tutu.manager;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.NumberUtil;
+import cn.hutool.core.util.RandomUtil;
 import com.bo.tutu.common.ErrorCode;
 import com.bo.tutu.constant.FileConstant;
 import com.bo.tutu.exception.BusinessException;
@@ -11,7 +12,6 @@ import com.bo.tutu.model.vo.UploadPictureResult;
 import com.qcloud.cos.model.PutObjectResult;
 import com.qcloud.cos.model.ciModel.persistence.ImageInfo;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,7 +28,7 @@ public class FileManager {
     private CosManager cosManager;
 
     /**
-     *
+     * 上传文件
      * @param multipartFile
      * @param uploadPathPrefix 上传路径前缀
      * @return
@@ -37,7 +37,7 @@ public class FileManager {
         //校验文件
         validFile(multipartFile);
         // 文件目录：根据业务、用户来划分
-        String uuid = RandomStringUtils.randomAlphanumeric(8);
+        String uuid = RandomUtil.randomString(16);
         String originalFilename = multipartFile.getOriginalFilename();
         String updatefilename = String.format("%s/%s/%s", DateUtil.formatDate(new Date()),uuid,FileUtil.getSuffix(originalFilename));
         String uploadPath=String.format("/%s/%s",uploadPathPrefix,updatefilename);

@@ -1,9 +1,11 @@
 package com.bo.tutu.model.enums;
 
+import cn.hutool.core.util.ObjectUtil;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.commons.lang3.ObjectUtils;
+
 
 /**
  * 用户角色枚举
@@ -42,7 +44,7 @@ public enum UserRoleEnum {
      * @return
      */
     public static UserRoleEnum getEnumByValue(String value) {
-        if (ObjectUtils.isEmpty(value)) {
+        if (ObjectUtil.isEmpty(value)) {
             return null;
         }
         for (UserRoleEnum anEnum : UserRoleEnum.values()) {
