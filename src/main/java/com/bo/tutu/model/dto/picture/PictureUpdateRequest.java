@@ -27,8 +27,7 @@ public class PictureUpdateRequest implements Serializable {
      * 分类  
      */  
     private String category;
-    // TODO: 2024/12/21
-    /**  
+    /**
      * 标签  
      */  
     private List<String> tags;

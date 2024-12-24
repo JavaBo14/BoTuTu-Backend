@@ -12,13 +12,17 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.bo.tutu.common.ErrorCode;
 import com.bo.tutu.constant.CommonConstant;
+import com.bo.tutu.exception.BusinessException;
 import com.bo.tutu.exception.ThrowUtils;
 import com.bo.tutu.manager.FileManager;
 import com.bo.tutu.mapper.PictureMapper;
 import com.bo.tutu.model.dto.picture.PictureQueryRequest;
+import com.bo.tutu.model.dto.picture.PictureReviewRequest;
 import com.bo.tutu.model.dto.picture.PictureUploadRequest;
 import com.bo.tutu.model.entity.Picture;
 import com.bo.tutu.model.entity.User;
+import com.bo.tutu.model.enums.PictureReviewEnum;
+import com.bo.tutu.model.enums.UserRoleEnum;
 import com.bo.tutu.model.vo.PictureVO;
 import com.bo.tutu.model.vo.UploadPictureResult;
 import com.bo.tutu.model.vo.UserVO;
@@ -44,6 +48,13 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     @Resource
     private UserService userService;
 
+    /**
+     * 上传图片
+     * @param multipartFile
+     * @param pictureUploadRequest
+     * @param loginUser
+     * @return
+     */
     @Override
     public PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser) {
 
@@ -57,11 +68,16 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             pictureId=pictureUploadRequest.getId();
         }
         Picture picture=new Picture();
+        fillReviewParams(picture, loginUser);
         if (pictureId != null){
-            boolean exists = this.lambdaQuery()
-                    .eq(Picture::getId, pictureId)
-                    .exists();
-            ThrowUtils.throwIf(!exists,ErrorCode.NOT_FOUND_ERROR,"图片不存在");
+            Picture oldPicture = this.getById(pictureId);
+//            boolean exists = this.lambdaQuery()
+//                    .eq(Picture::getId, pictureId)
+//                    .exists();
+            if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+            }
+            ThrowUtils.throwIf(oldPicture == null,ErrorCode.NOT_FOUND_ERROR,"图片不存在");
             picture.setId(pictureId);
             picture.setEditTime(new Date());
         }
@@ -76,6 +92,10 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         return PictureVO.objToVo(picture);
     }
 
+    /**
+     * 图片校验
+     * @param picture
+     */
     @Override
     public void validPicture(Picture picture) {
         ThrowUtils.throwIf(picture == null,ErrorCode.PARAMS_ERROR,"图片为空");
@@ -104,6 +124,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         }
     }
 
+    /**
+     * 获取查询条件
+     * @param pictureQueryRequest
+     * @return
+     */
     @Override
     public QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest) {
         QueryWrapper<Picture> queryWrapper = new QueryWrapper<>();
@@ -124,7 +149,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Long userId = pictureQueryRequest.getUserId();
         String sortField = pictureQueryRequest.getSortField();
         String sortOrder = pictureQueryRequest.getSortOrder();
-
+        Integer reviewStatus = pictureQueryRequest.getReviewStatus();
+        String reviewMessage = pictureQueryRequest.getReviewMessage();
+        Long reviewerId = pictureQueryRequest.getReviewerId();
         if (StrUtil.isNotBlank(searchText)){
             queryWrapper.and(qw ->qw.like(StrUtil.isNotBlank(name),"name",name)
                         .or().like(StrUtil.isNotBlank(introduction), "introduction", introduction)
@@ -136,21 +163,30 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
                 queryWrapper.like("tags","\""+tag+"\"");
             }
         }
-        queryWrapper.eq(ObjectUtil.isNotEmpty(id), "id", id);
+        queryWrapper.eq(ObjUtil.isNotEmpty(id), "id", id);
         queryWrapper.like(StrUtil.isNotBlank(name), "name", name);
         queryWrapper.like(StrUtil.isNotBlank(introduction), "introduction", introduction);
         queryWrapper.eq(ObjectUtil.isNotEmpty(userId), "userId", userId);
-        queryWrapper.eq(StrUtil.isNotBlank(category), "category", category);
-        queryWrapper.eq(ObjectUtil.isNotEmpty(picSize), "picSize", picSize);
-        queryWrapper.eq(ObjectUtil.isNotEmpty(picWidth), "picWidth", picWidth);
-        queryWrapper.eq(ObjectUtil.isNotEmpty(picHeight), "picHeight", picHeight);
-        queryWrapper.eq(ObjectUtil.isNotEmpty(picScale), "picScale", picScale);
-        queryWrapper.eq(ObjectUtil.isNotEmpty(picFormat), "picFormat", picFormat);
+        queryWrapper.eq(ObjUtil.isNotEmpty(category), "category", category);
+        queryWrapper.eq(ObjUtil.isNotEmpty(picSize), "picSize", picSize);
+        queryWrapper.eq(ObjUtil.isNotEmpty(picWidth), "picWidth", picWidth);
+        queryWrapper.eq(ObjUtil.isNotEmpty(picHeight), "picHeight", picHeight);
+        queryWrapper.eq(ObjUtil.isNotEmpty(picScale), "picScale", picScale);
+        queryWrapper.eq(ObjUtil.isNotEmpty(picFormat), "picFormat", picFormat);
+        queryWrapper.eq(ObjUtil.isNotEmpty(reviewStatus), "reviewStatus", reviewStatus);
+        queryWrapper.like(StrUtil.isNotBlank(reviewMessage), "reviewMessage", reviewMessage);
+        queryWrapper.eq(ObjUtil.isNotEmpty(reviewerId), "reviewerId", reviewerId);
         queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals(CommonConstant.SORT_ORDER_ASC),
                 sortField);
         return queryWrapper;
     }
 
+    /**
+     * 添加用户信息
+     * @param picture
+     * @param request
+     * @return
+     */
     @Override
     public PictureVO getPictureVo(Picture picture, HttpServletRequest request) {
         PictureVO pictureVO = PictureVO.objToVo(picture);
@@ -186,6 +222,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             Long userId = pictureVO.getUserId();
             User user = null;
             if (userIdUserListMap.containsKey(userId)) {
+                //get(0)如果一个用户 ID 对应多个用户记录（理论上不应该发生，但代码需要防御性编程）
                 user = userIdUserListMap.get(userId).get(0);
             }
             pictureVO.setUser(userService.getUserVO(user));
@@ -194,6 +231,52 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         return pictureVOPage;
     }
 
+    /**
+     * 图片审核
+     *
+     * @param pictureReviewRequest
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public Boolean doPictureReview(PictureReviewRequest pictureReviewRequest, User loginUser) {
+        Long userId = loginUser.getId();
+        Integer reviewStatus = pictureReviewRequest.getReviewStatus();
+        PictureReviewEnum reviewStatusEnum = PictureReviewEnum.getEnumByValue(reviewStatus);
+        if (userId == null || reviewStatus == null || PictureReviewEnum.REVIEWING.equals(reviewStatusEnum)){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        //判断是否存在
+        Picture oldPicture = this.getById(pictureReviewRequest.getId());
+        ThrowUtils.throwIf(oldPicture == null,ErrorCode.OPERATION_ERROR,"图片不存在");
+        //不能重复审核
+        if (oldPicture.getReviewStatus().equals(reviewStatus)){
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"不能重复审核");
+        }
+        //操作数据库
+        Picture picture = new Picture();
+        BeanUtil.copyProperties(pictureReviewRequest,picture);
+        picture.setUserId(loginUser.getId());
+        picture.setReviewTime(new Date());
+        boolean result = this.save(picture);
+        ThrowUtils.throwIf(!result,ErrorCode.OPERATION_ERROR);
+        return result;
+    }
+
+    @Override
+    public Boolean fillReviewParams(Picture picture, User loginUser) {
+        String userRole = loginUser.getUserRole();
+        UserRoleEnum userRoleEnum = UserRoleEnum.getEnumByValue(userRole);
+        if (UserRoleEnum.ADMIN.equals(userRoleEnum)){
+            picture.setReviewTime(new Date());
+            picture.setReviewerId(loginUser.getId());
+            picture.setReviewMessage("管理员自动过审");
+            picture.setReviewStatus(PictureReviewEnum.PASS.getValue());
+        }else{
+            picture.setReviewStatus(PictureReviewEnum.REVIEWING.getValue());
+        }
+        return true;
+    }
 }
 
 

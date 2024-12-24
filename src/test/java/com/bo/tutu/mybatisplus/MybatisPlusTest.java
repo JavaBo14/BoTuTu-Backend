@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.annotation.Resource;
+import java.util.List;
 
 @Slf4j
 @SpringBootTest
@@ -31,5 +32,12 @@ public class MybatisPlusTest {
         Page<User> userPage = userService.page(new Page<>(1, 10), queryWrapper);
         System.out.println("userPage " + userPage);
     }
+     @Test
+    public void userList(){
+         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+         List<User> list = userService.list(queryWrapper);
+         System.out.println(list);
+     }
+
 
 }

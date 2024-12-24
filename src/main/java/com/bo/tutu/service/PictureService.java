@@ -3,8 +3,8 @@ package com.bo.tutu.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bo.tutu.model.dto.picture.PictureQueryRequest;
+import com.bo.tutu.model.dto.picture.PictureReviewRequest;
 import com.bo.tutu.model.dto.picture.PictureUploadRequest;
-import com.bo.tutu.model.dto.user.UserQueryRequest;
 import com.bo.tutu.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.bo.tutu.model.entity.User;
@@ -60,5 +60,23 @@ public interface PictureService extends IService<Picture> {
      * @return
      */
     Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request);
+
+    /**
+     * 图片审核
+     *
+     * @param pictureReviewRequest
+     * @param loginUser
+     * @return
+     */
+    Boolean doPictureReview(PictureReviewRequest pictureReviewRequest, User loginUser);
+
+    /**
+     * 自动审核
+     * @param picture
+     * @param loginUser
+     * @return
+     */
+    Boolean fillReviewParams(Picture  picture,User loginUser);
+
 
 }
