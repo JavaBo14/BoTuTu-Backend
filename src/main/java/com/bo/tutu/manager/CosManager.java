@@ -1,10 +1,8 @@
 package com.bo.tutu.manager;
 
+import com.bo.tutu.utils.ContentTypeUtil;
 import com.qcloud.cos.COSClient;
-import com.qcloud.cos.model.COSObject;
-import com.qcloud.cos.model.GetObjectRequest;
-import com.qcloud.cos.model.PutObjectRequest;
-import com.qcloud.cos.model.PutObjectResult;
+import com.qcloud.cos.model.*;
 import com.bo.tutu.config.CosClientConfig;
 import java.io.File;
 import java.util.LinkedList;
@@ -83,6 +81,29 @@ public class CosManager {
         return cosClient.putObject(putObjectRequest);
     }
 
+    /**
+     * 自定义headers
+     * @param key
+     * @param file
+     * @param filesuffix
+     * @return
+     */
+    public PutObjectResult putPictureObject(String key, File file,String filesuffix) {
+        PutObjectRequest putObjectRequest = new PutObjectRequest(cosClientConfig.getBucket(), key,
+                file);
+        String contentType = ContentTypeUtil.getContentTypeBySuffix(filesuffix);
+        // 设置自定义元数据（包括 Content-Type）
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType(contentType);
+        putObjectRequest.setMetadata(metadata);
+        // 对图片进行处理（获取基本信息也被视作为一种处理）
+        PicOperations picOperations = new PicOperations();
+        // 1 表示返回原图信息
+        picOperations.setIsPicInfo(1);
+        // 构造处理参数
+        putObjectRequest.setPicOperations(picOperations);
+        return cosClient.putObject(putObjectRequest);
+    }
 
 
 }

@@ -35,16 +35,17 @@ public abstract class PictureUploadTemplate {
         validSource(inputSource);
         // 文件目录：根据业务、用户来划分
         String uuid = RandomUtil.randomString(16);
-        // TODO: 2024/12/25  获取文件名
+        // TODO: 2024/12/25  获取文件名(通过url上传时，存在url路径没有文件名的情况，后接ai)
         String originalFilename = getOriginFilename(inputSource);
-        String updatefilename = String.format("%s/%s/%s", DateUtil.formatDate(new Date()), uuid, FileUtil.getSuffix(originalFilename));
+        String filesuffix = FileUtil.getSuffix(originalFilename);
+        String updatefilename = String.format("%s/%s/%s", DateUtil.formatDate(new Date()), uuid,filesuffix);
         String uploadPath = String.format("/%s/%s", uploadPathPrefix, updatefilename);
         File file = null;
         try {
             // TODO: 2024/12/25 处理输入源并生成本地临时文件
             file = File.createTempFile(uploadPath, null);
             processFile(inputSource,file);
-            PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file);
+            PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file,filesuffix);
             //获取图片信息
             return buildPictureResult(updatefilename, uploadPath, file, putObjectResult);
         } catch (Exception e) {
