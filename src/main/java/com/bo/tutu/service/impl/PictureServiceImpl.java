@@ -15,6 +15,9 @@ import com.bo.tutu.constant.CommonConstant;
 import com.bo.tutu.exception.BusinessException;
 import com.bo.tutu.exception.ThrowUtils;
 import com.bo.tutu.manager.FileManager;
+import com.bo.tutu.manager.upload.FilePictureUpload;
+import com.bo.tutu.manager.upload.PictureUploadTemplate;
+import com.bo.tutu.manager.upload.UrlPictureUpload;
 import com.bo.tutu.mapper.PictureMapper;
 import com.bo.tutu.model.dto.picture.PictureQueryRequest;
 import com.bo.tutu.model.dto.picture.PictureReviewRequest;
@@ -48,15 +51,20 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     @Resource
     private UserService userService;
 
+    @Resource
+    private UrlPictureUpload urlPictureUpload;
+    @Resource
+    private FilePictureUpload filePictureUpload;
+
     /**
      * 上传图片
-     * @param multipartFile
+     * @param inputSource
      * @param pictureUploadRequest
      * @param loginUser
      * @return
      */
     @Override
-    public PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser) {
+    public PictureVO uploadPicture(Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser) {
 
         //参数校验
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
@@ -68,21 +76,28 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             pictureId=pictureUploadRequest.getId();
         }
         Picture picture=new Picture();
+        //图片自动审核
         fillReviewParams(picture, loginUser);
         if (pictureId != null){
             Picture oldPicture = this.getById(pictureId);
+            ThrowUtils.throwIf(oldPicture == null,ErrorCode.NOT_FOUND_ERROR,"图片不存在");
 //            boolean exists = this.lambdaQuery()
 //                    .eq(Picture::getId, pictureId)
 //                    .exists();
             if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
                 throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
             }
-            ThrowUtils.throwIf(oldPicture == null,ErrorCode.NOT_FOUND_ERROR,"图片不存在");
             picture.setId(pictureId);
             picture.setEditTime(new Date());
         }
+        //上传Cos对象存储
         String uploadPathPrefix=String.format("public/%s",loginUser.getId());
-        UploadPictureResult uploadPictureResult = fileManager.uploadPictureResult(multipartFile, uploadPathPrefix);
+        PictureUploadTemplate pictureUploadTemplate = filePictureUpload;
+        //用于检查 inputSource 对象是否是 String 类型
+        if (inputSource instanceof String) {
+            pictureUploadTemplate = urlPictureUpload;
+        }
+        UploadPictureResult uploadPictureResult = pictureUploadTemplate.uploadPictureResult(inputSource, uploadPathPrefix);
         //拷贝
         BeanUtil.copyProperties(uploadPictureResult,picture);
         picture.setName(uploadPictureResult.getPicName());
