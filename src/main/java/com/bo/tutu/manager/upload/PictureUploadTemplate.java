@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import com.bo.tutu.common.ErrorCode;
 import com.bo.tutu.constant.FileConstant;
 import com.bo.tutu.exception.BusinessException;
@@ -32,12 +33,19 @@ public abstract class PictureUploadTemplate {
      */
     public UploadPictureResult uploadPictureResult(Object inputSource, String uploadPathPrefix) {
         // TODO: 2024/12/25  校验（图片或者url）
-        validSource(inputSource);
+        String contentType = validSource(inputSource);
         // 文件目录：根据业务、用户来划分
         String uuid = RandomUtil.randomString(16);
         // TODO: 2024/12/25  获取文件名(通过url上传时，存在url路径没有文件名的情况，后接ai)
         String originalFilename = getOriginFilename(inputSource);
         String filesuffix = FileUtil.getSuffix(originalFilename);
+        //上传url
+        if (StrUtil.isNotBlank(contentType)) {
+            int index = contentType.indexOf("/");
+            if (index != -1) {
+                filesuffix = contentType.substring(index + 1);
+            }
+        }
         String updatefilename = String.format("%s/%s/%s", DateUtil.formatDate(new Date()), uuid,filesuffix);
         String uploadPath = String.format("/%s/%s", uploadPathPrefix, updatefilename);
         File file = null;
@@ -45,7 +53,7 @@ public abstract class PictureUploadTemplate {
             // TODO: 2024/12/25 处理输入源并生成本地临时文件
             file = File.createTempFile(uploadPath, null);
             processFile(inputSource,file);
-            PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file,filesuffix);
+            PutObjectResult putObjectResult = cosManager.putPictureObject(uploadPath, file,filesuffix,contentType);
             //获取图片信息
             return buildPictureResult(updatefilename, uploadPath, file, putObjectResult);
         } catch (Exception e) {
@@ -68,7 +76,7 @@ public abstract class PictureUploadTemplate {
         ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
         double scale = NumberUtil.round(imageInfo.getWidth() * 1.0 / imageInfo.getHeight(), 2).doubleValue();
         UploadPictureResult uploadPictureResult = new UploadPictureResult();
-        uploadPictureResult.setUrl(FileConstant.COS_HOST + uploadPath);
+        uploadPictureResult.setUrl(FileConstant.COS_HTML_HOST + uploadPath);
         uploadPictureResult.setPicName(updatefilename);
         uploadPictureResult.setPicSize(FileUtil.size(file));
         uploadPictureResult.setPicWidth(imageInfo.getWidth());
@@ -81,7 +89,7 @@ public abstract class PictureUploadTemplate {
     /**
      * 校验输入源（本地文件或 URL）
      */
-    protected abstract void validSource(Object inputSource);
+    protected abstract String validSource(Object inputSource);
 
     /**
      * 获取输入源的原始文件名

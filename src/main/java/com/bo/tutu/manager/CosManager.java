@@ -1,5 +1,6 @@
 package com.bo.tutu.manager;
 
+import cn.hutool.core.util.StrUtil;
 import com.bo.tutu.utils.ContentTypeUtil;
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.model.*;
@@ -88,13 +89,18 @@ public class CosManager {
      * @param filesuffix
      * @return
      */
-    public PutObjectResult putPictureObject(String key, File file,String filesuffix) {
+    public PutObjectResult putPictureObject(String key, File file,String filesuffix,String contentDeliverType) {
         PutObjectRequest putObjectRequest = new PutObjectRequest(cosClientConfig.getBucket(), key,
                 file);
-        String contentType = ContentTypeUtil.getContentTypeBySuffix(filesuffix);
+        //contentType 图片->filesuffix  url->filesuffix
+        String contentType=contentDeliverType;
+        if (StrUtil.isBlank(contentDeliverType)){
+            contentType = ContentTypeUtil.getContentTypeBySuffix(filesuffix);
+        }
         // 设置自定义元数据（包括 Content-Type）
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentType(contentType);
+        metadata.setContentDisposition("inline"); // 设置为 inline
         putObjectRequest.setMetadata(metadata);
         // 对图片进行处理（获取基本信息也被视作为一种处理）
         PicOperations picOperations = new PicOperations();

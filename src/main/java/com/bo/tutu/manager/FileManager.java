@@ -62,7 +62,7 @@ public class FileManager {
             ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
             double scale = NumberUtil.round(imageInfo.getWidth() * 1.0 / imageInfo.getHeight(), 2).doubleValue();
             UploadPictureResult uploadPictureResult = new UploadPictureResult();
-            uploadPictureResult.setUrl(FileConstant.COS_HOST + uploadPath);
+            uploadPictureResult.setUrl(FileConstant.COS_HTML_HOST + uploadPath);
             uploadPictureResult.setPicName(updatefilename);
             uploadPictureResult.setPicSize(FileUtil.size(file));
             uploadPictureResult.setPicWidth(imageInfo.getWidth());
@@ -107,7 +107,7 @@ public class FileManager {
             ImageInfo imageInfo = putObjectResult.getCiUploadResult().getOriginalInfo().getImageInfo();
             double scale = NumberUtil.round(imageInfo.getWidth() * 1.0 / imageInfo.getHeight(), 2).doubleValue();
             UploadPictureResult uploadPictureResult = new UploadPictureResult();
-            uploadPictureResult.setUrl(FileConstant.COS_HOST + uploadPath);
+            uploadPictureResult.setUrl(FileConstant.COS_HTML_HOST + uploadPath);
             uploadPictureResult.setPicName(originFilename);
             uploadPictureResult.setPicSize(FileUtil.size(file));
             uploadPictureResult.setPicWidth(imageInfo.getWidth());

@@ -13,7 +13,7 @@ import java.util.Arrays;
 @Service
 public class FilePictureUpload extends PictureUploadTemplate {
     @Override
-    protected void validSource(Object inputSource) {
+    protected String validSource(Object inputSource) {
         MultipartFile multipartFile = (MultipartFile) inputSource;
         ThrowUtils.throwIf(multipartFile == null, ErrorCode.PARAMS_ERROR,"文件不能为空");
         // 文件大小
@@ -27,6 +27,7 @@ public class FilePictureUpload extends PictureUploadTemplate {
         if (!Arrays.asList("jpeg", "jpg", "svg", "png", "webp").contains(fileSuffix)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件类型错误");
         }
+        return null;
     }
 
 

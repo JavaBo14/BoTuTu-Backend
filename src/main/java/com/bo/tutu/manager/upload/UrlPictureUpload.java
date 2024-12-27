@@ -20,7 +20,7 @@ import java.util.List;
 @Service
 public class UrlPictureUpload extends PictureUploadTemplate {
     @Override
-    protected void validSource(Object inputSource) {
+    protected String validSource(Object inputSource) {
         String fileUrl= (String) inputSource;
         ThrowUtils.throwIf(StrUtil.isBlank(fileUrl), ErrorCode.PARAMS_ERROR, "文件地址不能为空");
         try {
@@ -38,15 +38,7 @@ public class UrlPictureUpload extends PictureUploadTemplate {
             response = HttpUtil.createRequest(Method.HEAD, fileUrl).execute();
             // 未正常返回，无需执行其他判断
             if (response.getStatus() != HttpStatus.HTTP_OK) {
-                return;
-            }
-            // 4. 校验文件类型
-            String contentType = response.header("Content-Type");
-            if (StrUtil.isNotBlank(contentType)) {
-                // 允许的图片类型
-                final List<String> ALLOW_CONTENT_TYPES = Arrays.asList("image/jpeg", "image/jpg", "image/png", "image/webp");
-                ThrowUtils.throwIf(!ALLOW_CONTENT_TYPES.contains(contentType.toLowerCase()),
-                        ErrorCode.PARAMS_ERROR, "文件类型错误");
+                return null;
             }
             // 5. 校验文件大小
             String contentLengthStr = response.header("Content-Length");
@@ -59,6 +51,17 @@ public class UrlPictureUpload extends PictureUploadTemplate {
                     throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小格式错误");
                 }
             }
+            // 4. 校验文件类型
+            String contentType = response.header("Content-Type");
+            if (StrUtil.isNotBlank(contentType)) {
+                // 允许的图片类型
+                final List<String> ALLOW_CONTENT_TYPES = Arrays.asList("image/jpeg", "image/jpg", "image/png", "image/webp");
+                ThrowUtils.throwIf(!ALLOW_CONTENT_TYPES.contains(contentType.toLowerCase()),
+                        ErrorCode.PARAMS_ERROR, "文件类型错误");
+                return contentType;
+            } else {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件类型无法识别");
+            }
         } finally {
             if (response != null) {
                 response.close();
@@ -68,9 +71,35 @@ public class UrlPictureUpload extends PictureUploadTemplate {
 
     @Override
     protected String getOriginFilename(Object inputSource) {
-        String fileUrl= (String) inputSource;
-        return  FileUtil.mainName(fileUrl);
+        String fileUrl = (String) inputSource;
+        if (StrUtil.isBlank(fileUrl)) {
+            return "无名";
+        }
+        try {
+            // 提取最后一个 `/` 后的部分
+            String lastPart = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
+
+            // 检查最后一部分是否有文件扩展名
+            if (lastPart.matches(".*\\.(jpg|png|jpeg|gif|bmp|webp)$")) {
+                // 如果有扩展名，使用 FileUtil 提取主文件名
+                return FileUtil.mainName(lastPart);
+            }
+
+            // 判断是否包含特殊字符
+            if (lastPart.matches(".*[\\-,&].*")) {
+                // 如果包含特殊字符，提取最后一个 `/` 前的部分
+                String beforeLastSlash = fileUrl.substring(0, fileUrl.lastIndexOf("/"));
+                return beforeLastSlash.substring(beforeLastSlash.lastIndexOf("/") + 1);
+            } else {
+                // 如果不包含特殊字符，直接返回最后部分
+                return lastPart;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "无名";
+        }
     }
+
 
     @Override
     protected void processFile(Object inputSource, File file) throws Exception {
