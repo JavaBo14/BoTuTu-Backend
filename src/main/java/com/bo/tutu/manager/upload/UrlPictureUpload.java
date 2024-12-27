@@ -72,31 +72,27 @@ public class UrlPictureUpload extends PictureUploadTemplate {
     @Override
     protected String getOriginFilename(Object inputSource) {
         String fileUrl = (String) inputSource;
-        if (StrUtil.isBlank(fileUrl)) {
-            return "无名";
-        }
         try {
             // 提取最后一个 `/` 后的部分
             String lastPart = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
-
             // 检查最后一部分是否有文件扩展名
             if (lastPart.matches(".*\\.(jpg|png|jpeg|gif|bmp|webp)$")) {
                 // 如果有扩展名，使用 FileUtil 提取主文件名
                 return FileUtil.mainName(lastPart);
             }
-
             // 判断是否包含特殊字符
             if (lastPart.matches(".*[\\-,&].*")) {
                 // 如果包含特殊字符，提取最后一个 `/` 前的部分
                 String beforeLastSlash = fileUrl.substring(0, fileUrl.lastIndexOf("/"));
-                return beforeLastSlash.substring(beforeLastSlash.lastIndexOf("/") + 1);
+                String substring = beforeLastSlash.substring(beforeLastSlash.lastIndexOf("/") + 1);
+                return substring;
             } else {
                 // 如果不包含特殊字符，直接返回最后部分
                 return lastPart;
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return "无名";
+            return null;
         }
     }
 

@@ -88,4 +88,11 @@ public interface PictureService extends IService<Picture> {
      */
     Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser);
 
+    /**
+     * 批量抓取和创建图片（ChatGPT）
+     * @param pictureUploadByBatchRequest
+     * @param loginUser
+     * @return
+     */
+    Integer uploadPictureByGptBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser);
 }

@@ -36,17 +36,21 @@ public abstract class PictureUploadTemplate {
         String contentType = validSource(inputSource);
         // 文件目录：根据业务、用户来划分
         String uuid = RandomUtil.randomString(16);
-        // TODO: 2024/12/25  获取文件名(通过url上传时，存在url路径没有文件名的情况，后接ai)
+        // TODO: 2024/12/25  获取文件名
         String originalFilename = getOriginFilename(inputSource);
         String filesuffix = FileUtil.getSuffix(originalFilename);
-        //上传url
+        //上传url时获取后缀
         if (StrUtil.isNotBlank(contentType)) {
             int index = contentType.indexOf("/");
             if (index != -1) {
                 filesuffix = contentType.substring(index + 1);
             }
         }
-        String updatefilename = String.format("%s/%s/%s", DateUtil.formatDate(new Date()), uuid,filesuffix);
+        // TODO: 2024/12/27 拼接文件名（url）
+        if (StrUtil.isNotBlank(contentType)){
+            originalFilename=originalFilename+"."+filesuffix;
+        }
+        String updatefilename = String.format("%s/%s/%s", DateUtil.formatDate(new Date()), uuid,originalFilename);
         String uploadPath = String.format("/%s/%s", uploadPathPrefix, updatefilename);
         File file = null;
         try {

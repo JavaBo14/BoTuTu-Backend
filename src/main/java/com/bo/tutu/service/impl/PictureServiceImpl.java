@@ -40,6 +40,8 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -301,6 +303,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         return true;
     }
 
+    /**
+     * 批量抓取和创建图片
+     * @param pictureUploadByBatchRequest
+     * @param loginUser
+     * @return
+     */
     @Override
     public Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
         String searchText = pictureUploadByBatchRequest.getSearchText();
@@ -359,6 +367,82 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         return uploadCount;
     }
 
+    /**
+     * 批量抓取和创建图片（ChatGPT）
+     * @param pictureUploadByBatchRequest
+     * @param loginUser
+     * @return
+     */
+    @Override
+    public Integer uploadPictureByGptBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
+        String searchText = pictureUploadByBatchRequest.getSearchText();
+        // 格式化数量
+        Integer count = pictureUploadByBatchRequest.getCount();
+        String namePrefix = pictureUploadByBatchRequest.getNamePrefix();
+        if (StrUtil.isBlank(namePrefix)) {
+            namePrefix = searchText;
+        }
+        ThrowUtils.throwIf(count > 30, ErrorCode.PARAMS_ERROR, "最多 30 条");
+        // 成功上传的计数器
+        int successCount = 0;
+        try {
+            // 1. 构造 Bing 图片搜索 URL
+            String fetchUrl = String.format("https://cn.bing.com/images/async?q=%s&mmasync=1", searchText);            // 2. 获取 Bing 图片搜索页面的 HTML
+            Document document = Jsoup.connect(fetchUrl).get();
+            // 3. 提取图片的 URL
+            Elements imgElements = document.select("a.iusc"); // 获取含图片的节点
+            List<String> imageUrls = new ArrayList<>();
+            for (Element imgElement : imgElements) {
+                String metadata = imgElement.attr("m");
+                String imgUrl = extractImageUrl(metadata);
+                if (imgUrl != null) {
+                    imageUrls.add(imgUrl);
+                }
+                if (imageUrls.size() >= count) {
+                    break; // 最多获取指定数量图片
+                }
+            }
+            // 4. 上传图片
+            for (String imageUrl : imageUrls) {
+                PictureUploadRequest pictureUploadRequest = new PictureUploadRequest();
+                if (StrUtil.isNotBlank(namePrefix)) {
+                    // 设置图片名称，序号连续递增
+                    pictureUploadRequest.setPicName(namePrefix + "_" + (successCount + 1));
+                }
+                try {
+                    this.uploadPicture(imageUrl, pictureUploadRequest, loginUser);
+                    successCount++; // 成功上传后递增计数器
+                } catch (Exception e) {
+                    log.error("单张图片上传失败: {}", imageUrl, e);
+                    continue;
+                }
+                if (successCount >= count) {
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR,"批量上传图片失败");
+        }
+
+        // 返回成功上传的数量
+        return successCount;
+    }
+
+    /**
+     * 从 metadata 中提取图片 URL
+     * @param metadata
+     * @return
+     */
+    private static String extractImageUrl(String metadata) {
+        try {
+            // 示例 metadata: {"murl":"https://image_url.jpg","turl":"thumbnail_url"}
+            int start = metadata.indexOf("\"murl\":\"") + 8;
+            int end = metadata.indexOf("\"", start);
+            return metadata.substring(start, end);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
 
 
