@@ -128,7 +128,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         String url = picture.getUrl();
         String name = picture.getName();
         String introduction = picture.getIntroduction();
-        String picFormat = picture.getPicFormat();
+//        String picFormat = picture.getPicFormat();
         ThrowUtils.throwIf(ObjUtil.isNull(id),ErrorCode.NOT_FOUND_ERROR,"id不能为空");
         if (StrUtil.isNotBlank(url)) {
             ThrowUtils.throwIf(url.length() > 1024, ErrorCode.PARAMS_ERROR, "url 过长");
@@ -138,14 +138,6 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         }
         if (StrUtil.isNotBlank(introduction)) {
             ThrowUtils.throwIf(introduction.length() > 800, ErrorCode.PARAMS_ERROR, "简介过长");
-        }
-        String[] validFormats = {"JPEG", "PNG", "GIF", "BMP", "TIFF"};
-        picFormat = picFormat.toUpperCase();
-        // 使用Arrays类的binarySearch方法来检查picFormat是否在有效格式列表中
-        if (Arrays.binarySearch(validFormats, picFormat) >= 0) {
-            System.out.println("图片格式有效");
-        } else {
-            System.out.println("图片格式无效");
         }
     }
 

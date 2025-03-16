@@ -1,5 +1,6 @@
 package com.bo.tutu.controller;
 
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bo.tutu.annotation.AuthCheck;
@@ -19,11 +20,16 @@ import com.bo.tutu.model.vo.PictureTagCategory;
 import com.bo.tutu.model.vo.PictureVO;
 import com.bo.tutu.service.PictureService;
 import com.bo.tutu.service.UserService;
+import com.bo.tutu.utils.JsonUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.qcloud.cos.model.COSObject;
 import com.qcloud.cos.model.COSObjectInputStream;
 import com.qcloud.cos.utils.IOUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -35,6 +41,7 @@ import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/picture")
@@ -49,6 +56,12 @@ public class PictureController {
 
     @Resource
     private PictureService pictureService;
+
+    @Resource
+    private Cache<String, Object> localCache;
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 文件上传
@@ -96,10 +109,6 @@ public class PictureController {
         Integer integer = pictureService.uploadPictureByBatch(pictureUploadByBatchRequest, loginUser);
         return ResultUtils.success(integer);
     }
-
-
-
-
 
     /**
      * 删除图片(本人和管理员可以删除)
@@ -214,7 +223,7 @@ public class PictureController {
      */
     // TODO: 2024/12/21  
     @PostMapping("/list/page/vo")
-    public BaseResponse<Page<PictureVO>> listUserVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest,
+    public BaseResponse<Page<PictureVO>> listPictureVOByPage(@RequestBody PictureQueryRequest pictureQueryRequest,
                                                        HttpServletRequest request) {
         if (pictureQueryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -228,6 +237,75 @@ public class PictureController {
         //普通用户只能查看已经审核的图片
         pictureQueryRequest.setReviewStatus(PictureReviewEnum.PASS.getValue());
         Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        return ResultUtils.success(pictureVOPage);
+    }
+
+    /**
+     *  分页获取图片封装列表缓存（封装类）
+     * @param pictureQueryRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/list/page/vo/cache")
+    public BaseResponse<Page<PictureVO>> listPictureVOByPageWithCache(@RequestBody PictureQueryRequest pictureQueryRequest,
+                                                             HttpServletRequest request) {
+        if (pictureQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        long current = pictureQueryRequest.getCurrent();
+        long size = pictureQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        //普通用户只能查看已经审核的图片
+        pictureQueryRequest.setReviewStatus(PictureReviewEnum.PASS.getValue());
+        // 1. 构建缓存键
+        String queryCondition = JsonUtils.toJson(pictureQueryRequest);
+        String hashKey = DigestUtils.md5DigestAsHex(queryCondition.getBytes());
+        String cacheKey = String.format("bopicture:listPictureVOByPage:%s", hashKey);
+        // 2. 多级缓存查询
+        Page<PictureVO> pictureVOPage = null;
+        // 2.1 查询本地缓存（一级缓存）
+        String localCacheValue = (String) localCache.getIfPresent(cacheKey);
+        if (localCacheValue != null) {
+            try {
+                pictureVOPage = JsonUtils.fromJson(localCacheValue, new TypeReference<Page<PictureVO>>() {});
+                return ResultUtils.success(pictureVOPage);
+            } catch (Exception e) {
+                // 如果反序列化失败，删除本地缓存
+                localCache.invalidate(cacheKey);
+            }
+        }
+        // 2.2 查询Redis分布式缓存（二级缓存）
+        String redisValue = (String) redisTemplate.opsForValue().get(cacheKey);
+        if (redisValue != null) {
+            try {
+                pictureVOPage = JsonUtils.fromJson(redisValue, new TypeReference<Page<PictureVO>>() {});
+                // 回填本地缓存
+                localCache.put(cacheKey, redisValue);
+                return ResultUtils.success(pictureVOPage);
+            } catch (Exception e) {
+                // 如果反序列化失败，删除Redis缓存
+                redisTemplate.delete(cacheKey);
+            }
+        }
+        // 3. 查询数据库
+        Page<Picture> picturePage = pictureService.page(
+                new Page<>(current, size),
+                pictureService.getQueryWrapper(pictureQueryRequest)
+        );
+        pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        // 4. 更新缓存
+        try {
+            String cacheValue = JsonUtils.toJson(pictureVOPage);
+            // 4.1 更新Redis缓存（设置随机过期时间，避免缓存雪崩）
+            int cacheExpireTime = 300 + RandomUtil.randomInt(0, 300); // 5-10分钟过期
+            redisTemplate.opsForValue().set(cacheKey, cacheValue, cacheExpireTime, TimeUnit.SECONDS);
+            // 4.2 更新本地缓存
+            localCache.put(cacheKey, cacheValue);
+        } catch (Exception e) {
+            // 缓存更新失败，记录日志但不影响返回结果
+            log.error("Cache update failed for key: {}", cacheKey, e);
+        }
         return ResultUtils.success(pictureVOPage);
     }
 
@@ -297,7 +375,6 @@ public class PictureController {
         Boolean result = pictureService.doPictureReview(pictureReviewRequest, loginUser);
         return ResultUtils.success(result);
     }
-
 
     /**
      * 文件下载

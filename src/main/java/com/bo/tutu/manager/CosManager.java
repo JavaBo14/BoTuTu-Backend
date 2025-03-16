@@ -100,6 +100,7 @@ public class CosManager {
         // 设置自定义元数据（包括 Content-Type）
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentType(contentType);
+        // TODO: 2024/12/29  ?
         metadata.setContentDisposition("inline"); // 设置为 inline
         putObjectRequest.setMetadata(metadata);
         // 对图片进行处理（获取基本信息也被视作为一种处理）
